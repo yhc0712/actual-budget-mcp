@@ -228,7 +228,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
         amount: ActualBudgetClient.fromAmount(t.amount),
         payee: t.payee ? payeeMap.get(t.payee) : undefined,
         category: t.category ? categoryMap.get(t.category) : undefined,
-        notes: t.notes,
+        notes: t.notes ?? undefined,
         cleared: t.cleared,
       }));
 
@@ -344,7 +344,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
         amount: ActualBudgetClient.fromAmount(t.amount),
         payee: t.payee ? payeeMap.get(t.payee) : undefined,
         category: t.category ? categoryMap.get(t.category) : undefined,
-        notes: t.notes,
+        notes: t.notes ?? undefined,
       }));
 
       const output = {
