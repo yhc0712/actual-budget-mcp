@@ -1,72 +1,80 @@
 # Actual Budget MCP Server
 
-讓 Claude 幫你記帳！這是一個 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 伺服器，讓 AI 助手可以與你的 [Actual Budget](https://actualbudget.org/) 互動。
+Let Claude manage your budget! This is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that allows AI assistants to interact with your [Actual Budget](https://actualbudget.org/).
 
-## 功能
+## Features
 
-透過自然語言與 Claude 對話來管理你的預算：
+Manage your budget through natural language conversations with Claude:
 
-- 📝 **記帳** - 「幫我記帳，今天在全聯花了 $350 買日用品」
-- 💰 **查詢餘額** - 「我的現金帳戶還有多少錢？」
-- 📊 **預算追蹤** - 「這個月餐飲花了多少？還剩多少預算？」
-- 🔍 **搜尋交易** - 「上個月在 Costco 的消費有哪些？」
-- 📈 **支出分析** - 「幫我分析這個月的支出分佈」
+- 📝 **Add Transactions** - "Add a transaction: $350 at Whole Foods for groceries"
+- 💰 **Check Balances** - "What's my checking account balance?"
+- 🔄 **Transfer Money** - "Transfer $500 from checking to savings"
+- 📊 **Budget Tracking** - "How much have I spent on dining this month?"
+- 🔍 **Search Transactions** - "Show me all Costco purchases last month"
+- 📈 **Spending Analysis** - "Analyze my spending breakdown for this month"
+- 📥 **Batch Import** - Import multiple transactions from CSV or structured data
 
-## 支援的工具
+## Supported Tools
 
-| 工具 | 說明 |
-|------|------|
-| `get_accounts` | 取得所有帳戶及餘額 |
-| `get_account_balance` | 查詢特定帳戶餘額 |
-| `add_transaction` | 新增交易（收入/支出） |
-| `get_transactions` | 查詢帳戶交易記錄 |
-| `search_transactions` | 搜尋交易（依收款人、備註、金額） |
-| `get_categories` | 取得所有類別 |
-| `get_budget_month` | 查看月預算概覽 |
-| `set_budget_amount` | 設定類別預算金額 |
-| `get_payees` | 取得所有收款人/商家 |
-| `get_spending_summary` | 取得支出摘要分析 |
-| `sync_budget` | 同步預算資料 |
+| Tool | Description |
+|------|-------------|
+| `get_accounts` | Get all accounts with balances |
+| `get_account_balance` | Query specific account balance |
+| `add_transaction` | Add transaction (income/expense/transfer) |
+| `import_transactions` | Batch import multiple transactions |
+| `get_transactions` | Query account transaction history |
+| `search_transactions` | Search transactions by payee, notes, or amount |
+| `update_transaction` | Update existing transaction |
+| `delete_transaction` | Delete a transaction |
+| `get_categories` | Get all budget categories |
+| `get_budget_month` | View monthly budget overview |
+| `set_budget_amount` | Set category budget amount |
+| `get_payees` | Get all payees/merchants |
+| `get_spending_summary` | Get spending summary analysis |
+| `get_schedules` | View recurring transactions/bills |
+| `create_schedule` | Create recurring transaction |
+| `delete_schedule` | Delete recurring transaction |
+| `sync_budget` | Sync budget data |
 
-## 快速開始
+## Quick Start
 
-### 前置需求
+### Prerequisites
 
-- 運作中的 Actual Budget 伺服器
-- 密碼認證（OpenID 用戶需同時啟用密碼登入）
-- Docker（用於部署）
+- Running Actual Budget server
+- Password authentication (OpenID users need to enable password login)
+- Docker (for deployment)
 
-### 1. 取得 Budget Sync ID
+### 1. Get Budget Sync ID
 
-在 Actual Budget 中：
-1. 進入 **Settings**
-2. 點擊 **Show advanced settings**
-3. 複製 **Sync ID**
+In Actual Budget:
+1. Go to **Settings**
+2. Click **Show advanced settings**
+3. Copy the **Sync ID**
 
-### 2. 設定環境變數
+### 2. Configure Environment Variables
 
 ```bash
 cp .env.example .env
 ```
 
-編輯 `.env`：
+Edit `.env`:
 
 ```env
 ACTUAL_SERVER_URL=http://your-actual-server:5006
 ACTUAL_PASSWORD=your-password
 ACTUAL_BUDGET_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
-# 如果有啟用端對端加密
+# If you have end-to-end encryption enabled
 # ACTUAL_ENCRYPTION_PASSWORD=your-encryption-password
 ```
 
-### 3. 使用 Docker 部署
+### 3. Deploy with Docker
 
 ```bash
-# 建置映像
+# Build image
 docker build -t actual-budget-mcp .
 
-# 執行
+# Run
 docker run -d \
   --name actual-budget-mcp \
   -p 3000:3000 \
@@ -74,141 +82,223 @@ docker run -d \
   actual-budget-mcp
 ```
 
-或使用 Docker Compose：
+Or use Docker Compose:
 
 ```bash
 docker-compose up -d
 ```
 
-### 4. 連接到 Claude
+### 4. Connect to Claude
 
-在 claude.ai 中設定 Connector：
+Configure the Connector in claude.ai:
 
-1. 進入 **Settings** → **Connectors**
-2. 點擊 **Add Connector**
-3. 選擇 **MCP**
-4. 輸入 URL：`http://your-server:3000/mcp`
+1. Go to **Settings** → **Connectors**
+2. Click **Add Connector**
+3. Select **MCP**
+4. Enter URL: `http://your-server:3000/mcp`
 
-## TrueNAS Scale 部署
+## TrueNAS Scale Deployment
 
-### 使用 Custom App
+### Using Custom App
 
-1. 在 TrueNAS Scale 中，進入 **Apps** → **Discover Apps** → **Custom App**
+1. In TrueNAS Scale, go to **Apps** → **Discover Apps** → **Custom App**
 
-2. 設定如下：
+2. Configure as follows:
 
    **Application Name:** `actual-budget-mcp`
-   
-   **Image Repository:** 你的 Docker registry 或本地建置
-   
+
+   **Image Repository:** Your Docker registry or local build
+
    **Container Images:**
    - Image: `actual-budget-mcp:latest`
-   
+
    **Container Environment Variables:**
    ```
    ACTUAL_SERVER_URL=http://actual-budget:5006
    ACTUAL_PASSWORD=your-password
    ACTUAL_BUDGET_ID=your-sync-id
    ```
-   
+
    **Networking:**
    - Port: 3000 → 3000 (TCP)
-   
+
    **Storage:**
    - Host Path: `/mnt/your-pool/actual-mcp-cache`
    - Mount Path: `/data/actual-cache`
 
-3. 如果 Actual Budget 也在 TrueNAS 上，確保它們在同一個網路中。
+3. If Actual Budget is also on TrueNAS, ensure they're on the same network.
 
-### 與現有 Actual Budget 整合
+### Integration with Existing Actual Budget
 
-如果你的 Actual Budget 已經部署在 TrueNAS：
+If your Actual Budget is already deployed on TrueNAS:
 
 ```yaml
-# 在 docker-compose.yml 中設定網路
+# Configure network in docker-compose.yml
 services:
   actual-budget-mcp:
     # ...
     environment:
-      - ACTUAL_SERVER_URL=http://actual-budget:5006  # 使用容器名稱
+      - ACTUAL_SERVER_URL=http://actual-budget:5006  # Use container name
     networks:
       - actual-network
 
 networks:
   actual-network:
-    external: true  # 使用現有網路
+    external: true  # Use existing network
 ```
 
-## 本地開發
+## Local Development
 
 ```bash
-# 安裝依賴
+# Install dependencies
 npm install
 
-# 開發模式（需要 .env）
+# Development mode (requires .env)
 npm run dev
 
-# 建置
+# Build
 npm run build
 
-# 執行
+# Run
 npm start
 ```
 
-## API 端點
+## API Endpoints
 
-| 端點 | 方法 | 說明 |
-|------|------|------|
-| `/mcp` | POST | MCP 請求端點 |
-| `/health` | GET | 健康檢查 |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/mcp` | POST | MCP request endpoint |
+| `/health` | GET | Health check |
 
-## 使用範例
+## Usage Examples
 
-設定好 Connector 後，你可以這樣與 Claude 對話：
+After configuring the Connector, you can interact with Claude like this:
 
-```
-你：幫我記帳，昨天在星巴克花了 $180
-
-Claude：✅ 已新增交易：
-- 帳戶：現金
-- 金額：-$180
-- 收款人：星巴克
-- 日期：2024-12-29
-
-需要指定類別嗎？
-```
+### Adding a Regular Transaction
 
 ```
-你：這個月的預算執行狀況如何？
+You: Add a transaction: $180 at Starbucks yesterday
 
-Claude：以下是 2024-12 的預算摘要：
+Claude: ✅ Transaction added:
+- Account: Checking
+- Amount: -$180
+- Payee: Starbucks
+- Date: 2024-12-29
 
-📊 整體狀況
-- 可分配：$5,000
-- 已預算：$45,000
-- 已支出：$32,450
+Would you like to specify a category?
+```
 
-📁 分類明細
-| 類別 | 預算 | 已花費 | 剩餘 |
-|------|------|--------|------|
-| 餐飲 | $8,000 | $6,200 | $1,800 |
-| 交通 | $3,000 | $2,100 | $900 |
-| 日用品 | $5,000 | $4,350 | $650 |
+### Transferring Between Accounts
+
+```
+You: Transfer $500 from checking to savings
+
+Claude: ✅ Transfer created:
+- From: Checking
+- To: Savings
+- Amount: $500
+- Date: 2024-12-30
+
+The transfer has been recorded in both accounts.
+```
+
+### Batch Importing Transactions
+
+```
+You: Import these transactions to my checking account:
+- Jan 1: $50 at Grocery Store (Food)
+- Jan 2: $100 at Gas Station (Transportation)
+- Jan 3: $25 at Coffee Shop (Dining)
+
+Claude: ✅ Imported 3 transactions:
+- Added: 3
+- Updated: 0
+
+All transactions have been imported successfully.
+```
+
+### Viewing Budget Status
+
+```
+You: How's my budget for this month?
+
+Claude: Here's your budget summary for 2024-12:
+
+📊 Overall Status
+- To Budget: $5,000
+- Total Budgeted: $45,000
+- Total Spent: $32,450
+
+📁 Category Breakdown
+| Category | Budgeted | Spent | Remaining |
+|----------|----------|-------|-----------|
+| Dining | $8,000 | $6,200 | $1,800 |
+| Transportation | $3,000 | $2,100 | $900 |
+| Groceries | $5,000 | $4,350 | $650 |
 ...
 ```
 
-## 故障排除
+## New Features in v1.2.0
 
-### 連線失敗
+### Transfer Transactions
 
-1. 確認 Actual Budget 伺服器正在運行
-2. 檢查 `ACTUAL_SERVER_URL` 是否正確
-3. 如果使用 Docker 網路，確認容器名稱正確
+The `add_transaction` tool now supports the `transfer_to` parameter for creating transfers between accounts:
 
-### 認證失敗
+```json
+{
+  "account": "Checking",
+  "amount": -100,
+  "transfer_to": "Savings",
+  "notes": "Monthly savings"
+}
+```
 
-1. 確認密碼正確
-2. 如果使用 OpenID，確保同時啟用密碼登入：
+This automatically creates matching transactions in both accounts using Actual Budget's transfer mechanism.
+
+### Batch Import Transactions
+
+The new `import_transactions` tool allows bulk importing of transactions with improved performance:
+
+```json
+{
+  "account": "Checking",
+  "transactions": [
+    {
+      "date": "2024-01-01",
+      "amount": -50.00,
+      "payee_name": "Grocery Store",
+      "category": "Food",
+      "imported_id": "txn_001"
+    },
+    {
+      "date": "2024-01-02",
+      "amount": -100.00,
+      "payee_name": "Gas Station",
+      "category": "Transportation",
+      "imported_id": "txn_002"
+    }
+  ]
+}
+```
+
+Benefits:
+- Single API call instead of multiple individual calls
+- Better duplicate detection using `imported_id`
+- Proper rule application across entire batch
+- Returns detailed counts of added/updated transactions
+
+## Troubleshooting
+
+### Connection Failed
+
+1. Verify Actual Budget server is running
+2. Check that `ACTUAL_SERVER_URL` is correct
+3. If using Docker networking, verify container names are correct
+
+### Authentication Failed
+
+1. Verify password is correct
+2. If using OpenID, ensure password login is also enabled:
    ```json
    // config.json
    {
@@ -216,22 +306,22 @@ Claude：以下是 2024-12 的預算摘要：
    }
    ```
 
-### Budget 找不到
+### Budget Not Found
 
-1. 確認 `ACTUAL_BUDGET_ID` 是正確的 Sync ID
-2. Sync ID 在 Actual Budget 的 Settings → Show advanced settings 中
+1. Verify `ACTUAL_BUDGET_ID` is the correct Sync ID
+2. Find Sync ID in Actual Budget's Settings → Show advanced settings
 
-### 加密錯誤
+### Encryption Error
 
-如果 budget 有啟用端對端加密，需要設定 `ACTUAL_ENCRYPTION_PASSWORD`
+If your budget has end-to-end encryption enabled, you need to set `ACTUAL_ENCRYPTION_PASSWORD`
 
-## 授權
+## License
 
 MIT License
 
-## 相關資源
+## Related Resources
 
 - [Actual Budget](https://actualbudget.org/)
-- [Actual Budget API 文件](https://actualbudget.org/docs/api/)
+- [Actual Budget API Documentation](https://actualbudget.org/docs/api/)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
