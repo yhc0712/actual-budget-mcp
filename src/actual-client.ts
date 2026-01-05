@@ -202,7 +202,6 @@ class ActualBudgetClient {
         account: transaction.account,
         date: transaction.date,
         amount: transaction.amount,
-        payee: transaction.payee,
         payee_name: transaction.payee_name,
         category: transaction.category,
         notes: transaction.notes,
