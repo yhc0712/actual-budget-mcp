@@ -94,15 +94,14 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
     {
       title: '新增交易/記帳',
       description:
-        'Add a new transaction (expense or income). Amount should be positive for income, negative for expenses. Use payee_name to specify who you paid or received from. Use transfer_to to create a transfer between accounts.',
+        'Add a new transaction (expense or income). Amount should be positive for income, negative for expenses. Use payee_name to specify who you paid or received from.',
       inputSchema: {
         account: z.string().describe('Account ID or name'),
         amount: z
           .number()
           .describe('Amount in currency (positive for income, negative for expense)'),
-        payee_name: z.string().optional().describe('Payee/merchant name (not used for transfers)'),
-        transfer_to: z.string().optional().describe('Account ID or name to transfer to/from (creates a transfer transaction)'),
-        category: z.string().optional().describe('Category ID or name (not applicable for transfers)'),
+        payee_name: z.string().optional().describe('Payee/merchant name'),
+        category: z.string().optional().describe('Category ID or name'),
         notes: z.string().optional().describe('Transaction notes'),
         date: z
           .string()
@@ -115,7 +114,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
         message: z.string(),
       },
     },
-    async ({ account, amount, payee_name, transfer_to, category, notes, date }) => {
+    async ({ account, amount, payee_name, category, notes, date }) => {
       // Find account
       const accounts = await client.getAccounts();
       const foundAccount = accounts.find(
@@ -126,55 +125,22 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
         throw new Error(`Account not found: ${account}`);
       }
 
-      let payeeId: string | undefined;
+      // Find category if provided
       let categoryId: string | undefined;
-      let isTransfer = false;
-
-      // Handle transfer transactions
-      if (transfer_to) {
-        isTransfer = true;
-
-        // Find the destination account
-        const destinationAccount = accounts.find(
-          (a) => a.id === transfer_to || a.name.toLowerCase() === transfer_to.toLowerCase()
+      if (category) {
+        const categories = await client.getCategories();
+        const foundCategory = categories.find(
+          (c) =>
+            c.id === category || c.name.toLowerCase() === category.toLowerCase()
         );
-
-        if (!destinationAccount) {
-          throw new Error(`Transfer destination account not found: ${transfer_to}`);
-        }
-
-        // Find the transfer payee for the destination account
-        const payees = await client.getPayees();
-        const transferPayee = payees.find(
-          (p) => p.transfer_acct === destinationAccount.id
-        );
-
-        if (!transferPayee) {
-          throw new Error(`Transfer payee not found for account: ${destinationAccount.name}`);
-        }
-
-        payeeId = transferPayee.id;
-        // Transfers don't use categories
-        categoryId = undefined;
-      } else {
-        // Handle regular transactions
-        // Find category if provided
-        if (category) {
-          const categories = await client.getCategories();
-          const foundCategory = categories.find(
-            (c) =>
-              c.id === category || c.name.toLowerCase() === category.toLowerCase()
-          );
-          categoryId = foundCategory?.id;
-        }
+        categoryId = foundCategory?.id;
       }
 
       const transactionId = await client.addTransaction({
         account: foundAccount.id,
         date: date || ActualBudgetClient.getToday(),
         amount: ActualBudgetClient.toAmount(amount),
-        payee: payeeId,
-        payee_name: isTransfer ? undefined : payee_name,
+        payee_name,
         category: categoryId,
         notes,
       });
@@ -182,9 +148,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
       const output = {
         success: true,
         transaction_id: transactionId,
-        message: isTransfer
-          ? `Transfer created: ${Math.abs(amount)} from ${foundAccount.name} to ${transfer_to}`
-          : `Transaction added: ${Math.abs(amount)} ${amount < 0 ? 'expense' : 'income'} to ${foundAccount.name}`,
+        message: `Transaction added: ${Math.abs(amount)} ${amount < 0 ? 'expense' : 'income'} to ${foundAccount.name}`,
       };
 
       return {
