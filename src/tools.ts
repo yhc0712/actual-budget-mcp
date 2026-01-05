@@ -159,6 +159,91 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
   );
 
   server.registerTool(
+    'import_transactions',
+    {
+      title: '批次匯入交易',
+      description:
+        'Import multiple transactions in a single batch operation. More efficient than individual add_transaction calls. Supports imported_id for duplicate detection and automatic rule application.',
+      inputSchema: {
+        account: z.string().describe('Account ID or name'),
+        transactions: z.array(
+          z.object({
+            date: z.string().describe('Date in YYYY-MM-DD format'),
+            amount: z.number().describe('Amount in currency (positive for income, negative for expense)'),
+            payee_name: z.string().optional().describe('Payee/merchant name'),
+            category: z.string().optional().describe('Category ID or name'),
+            notes: z.string().optional().describe('Transaction notes'),
+            imported_id: z.string().optional().describe('Unique import ID for duplicate detection'),
+            cleared: z.boolean().optional().describe('Whether transaction is cleared'),
+          })
+        ).describe('Array of transactions to import'),
+      },
+      outputSchema: {
+        success: z.boolean(),
+        added_count: z.number(),
+        updated_count: z.number(),
+        added_ids: z.array(z.string()),
+        updated_ids: z.array(z.string()),
+        message: z.string(),
+      },
+    },
+    async ({ account, transactions }) => {
+      // Find account
+      const accounts = await client.getAccounts();
+      const foundAccount = accounts.find(
+        (a) => a.id === account || a.name.toLowerCase() === account.toLowerCase()
+      );
+
+      if (!foundAccount) {
+        throw new Error(`Account not found: ${account}`);
+      }
+
+      // Get categories for resolution
+      const categories = await client.getCategories();
+      const categoryMap = new Map(categories.map((c) => [c.name.toLowerCase(), c.id]));
+
+      // Process transactions
+      const processedTransactions = transactions.map((t) => {
+        let categoryId: string | undefined;
+        if (t.category) {
+          // Try to find category by ID or name
+          const foundCategory = categories.find(
+            (c) => c.id === t.category || c.name.toLowerCase() === t.category?.toLowerCase()
+          );
+          categoryId = foundCategory?.id;
+        }
+
+        return {
+          date: t.date,
+          amount: ActualBudgetClient.toAmount(t.amount),
+          payee_name: t.payee_name,
+          category: categoryId,
+          notes: t.notes,
+          imported_id: t.imported_id,
+          cleared: t.cleared,
+        };
+      });
+
+      // Import all transactions in a single batch
+      const result = await client.importTransactions(foundAccount.id, processedTransactions);
+
+      const output = {
+        success: true,
+        added_count: result.added.length,
+        updated_count: result.updated.length,
+        added_ids: result.added,
+        updated_ids: result.updated,
+        message: `Imported ${transactions.length} transactions: ${result.added.length} added, ${result.updated.length} updated`,
+      };
+
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
+        structuredContent: output,
+      };
+    }
+  );
+
+  server.registerTool(
     'get_transactions',
     {
       title: '查詢交易記錄',
