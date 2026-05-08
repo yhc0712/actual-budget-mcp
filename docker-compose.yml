@@ -36,13 +36,6 @@ services:
     # If your Actual Budget is on the same Docker network
     # networks:
     #   - actual-network
-    
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
     deploy:
       resources:
