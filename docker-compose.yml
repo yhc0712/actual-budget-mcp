@@ -9,7 +9,7 @@ services:
     container_name: actual-budget-mcp
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${HOST_PORT:-3001}:3000"
     environment:
       # Required: Your Actual Budget server URL
       # If running on the same Docker network as Actual, use the container name
@@ -31,7 +31,7 @@ services:
       
     volumes:
       # Persist the Actual data cache
-      - actual-mcp-cache:/data/actual-cache
+      - ${STORAGE:-./actual-mcp-cache}:/data/actual-cache
     
     # If your Actual Budget is on the same Docker network
     # networks:
