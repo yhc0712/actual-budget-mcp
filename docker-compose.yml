@@ -30,6 +30,10 @@ services:
       - MCP_TRANSPORT=http
 
       - NODE_TLS_REJECT_UNAUTHORIZED=0
+
+      # Required: token clients must send as ?token=... or 'Authorization: Bearer ...'
+      # Compose refuses to start if it is unset, so the endpoint is never left open
+      - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN:?MCP_AUTH_TOKEN must be set}
       
     volumes:
       # Persist the Actual data cache
