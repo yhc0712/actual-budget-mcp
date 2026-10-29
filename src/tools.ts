@@ -7,6 +7,32 @@ import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import ActualBudgetClient from './actual-client.js';
 
+// Split transactions come back from Actual as a parent (no category) plus a
+// subtransactions array, each with its own category/amount/notes.
+function formatSubtransactions(t: any, categoryMap: Map<string, string>) {
+  if (!Array.isArray(t.subtransactions) || t.subtransactions.length === 0) {
+    return undefined;
+  }
+  return t.subtransactions.map((s: any) => ({
+    id: s.id,
+    amount: ActualBudgetClient.fromAmount(s.amount),
+    category: s.category ? categoryMap.get(s.category) : undefined,
+    notes: s.notes ?? undefined,
+  }));
+}
+
+const subtransactionsSchema = z
+  .array(
+    z.object({
+      id: z.string(),
+      amount: z.number(),
+      category: z.string().optional(),
+      notes: z.string().optional(),
+    })
+  )
+  .optional()
+  .describe('Split parts, present only for split transactions (the parent has no category)');
+
 export function registerTools(server: McpServer, client: ActualBudgetClient) {
   // ============ Account Tools ============
 
@@ -248,7 +274,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
     {
       title: '查詢交易記錄',
       description:
-        'Get transactions for an account within a date range. Returns transaction details including amount, payee, category, and notes.',
+        'Get transactions for an account within a date range. Returns transaction details including amount, payee, category, and notes. Split transactions have no category on the parent; their parts are listed in subtransactions.',
       inputSchema: {
         account: z.string().describe('Account ID or name'),
         start_date: z
@@ -271,6 +297,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
             category: z.string().optional(),
             notes: z.string().optional(),
             cleared: z.boolean().optional(),
+            subtransactions: subtransactionsSchema,
           })
         ),
         total_count: z.number(),
@@ -315,6 +342,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
         category: t.category ? categoryMap.get(t.category) : undefined,
         notes: t.notes ?? undefined,
         cleared: t.cleared,
+        subtransactions: formatSubtransactions(t, categoryMap),
       }));
 
       const output = {
@@ -335,7 +363,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
     {
       title: '搜尋交易',
       description:
-        'Search transactions across all accounts by payee name, notes, or amount range.',
+        'Search transactions across all accounts by payee name, notes, or amount range. Split transactions list their parts in subtransactions.',
       inputSchema: {
         payee: z.string().optional().describe('Search by payee name (partial match)'),
         notes: z.string().optional().describe('Search by notes content (partial match)'),
@@ -355,6 +383,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
             payee: z.string().optional(),
             category: z.string().optional(),
             notes: z.string().optional(),
+            subtransactions: subtransactionsSchema,
           })
         ),
         total_count: z.number(),
@@ -430,6 +459,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
         payee: t.payee ? payeeMap.get(t.payee) : undefined,
         category: t.category ? categoryMap.get(t.category) : undefined,
         notes: t.notes ?? undefined,
+        subtransactions: formatSubtransactions(t, categoryMap),
       }));
 
       const output = {
@@ -451,7 +481,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
     {
       title: '更新交易',
       description:
-        'Update an existing transaction. You can modify the amount, category, payee, notes, date, or cleared status.',
+        'Update an existing transaction. You can modify the amount, category, payee, notes, date, or cleared status. Split parts cannot be edited here; changing the amount or category of a split parent may break the split.',
       inputSchema: {
         id: z.string().describe('Transaction ID to update'),
         amount: z.number().optional().describe('New amount (positive for income, negative for expense)'),
@@ -777,7 +807,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
     {
       title: '取得支出摘要',
       description:
-        'Get a spending summary by category for a specific period. Great for understanding where money is going.',
+        'Get a spending summary by category for a specific period. Great for understanding where money is going. Split transactions are attributed to their sub-categories.',
       inputSchema: {
         start_date: z
           .string()
@@ -835,7 +865,17 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
       let totalSpent = 0;
       let totalIncome = 0;
 
+      // Split parents carry no category: count their parts instead of the parent
+      const entries: any[] = [];
       for (const t of allTransactions) {
+        if (Array.isArray(t.subtransactions) && t.subtransactions.length > 0) {
+          entries.push(...t.subtransactions);
+        } else if (!t.is_parent) {
+          entries.push(t);
+        }
+      }
+
+      for (const t of entries) {
         const amount = t.amount;
         if (amount < 0) {
           totalSpent += Math.abs(amount);

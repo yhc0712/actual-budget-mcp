@@ -22,8 +22,8 @@ Manage your budget through natural language conversations with Claude:
 | `get_account_balance` | Query specific account balance |
 | `add_transaction` | Add transaction (income/expense/transfer) |
 | `import_transactions` | Batch import multiple transactions |
-| `get_transactions` | Query account transaction history |
-| `search_transactions` | Search transactions by payee, notes, or amount |
+| `get_transactions` | Query account transaction history (split transactions include `subtransactions`) |
+| `search_transactions` | Search transactions by payee, notes, or amount (split transactions include `subtransactions`) |
 | `update_transaction` | Update existing transaction |
 | `delete_transaction` | Delete a transaction |
 | `get_categories` | Get all budget categories |
