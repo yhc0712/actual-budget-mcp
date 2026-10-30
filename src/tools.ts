@@ -21,6 +21,28 @@ function formatSubtransactions(t: any, categoryMap: Map<string, string>) {
   }));
 }
 
+// Actual links the two halves of a transfer via transfer_id; the payee on each
+// half is a transfer payee whose transfer_acct is the counterpart account.
+function formatTransfer(
+  t: any,
+  payeesById: Map<string, { transfer_acct?: string }>,
+  accountMap: Map<string, string>
+) {
+  const counterpart = t.payee ? payeesById.get(t.payee)?.transfer_acct : undefined;
+  const isTransfer = Boolean(t.transfer_id || counterpart);
+  return {
+    is_transfer: isTransfer ? true : undefined,
+    transfer_id: t.transfer_id ?? undefined,
+    transfer_account: counterpart ? accountMap.get(counterpart) : undefined,
+  };
+}
+
+const transferFields = {
+  is_transfer: z.boolean().optional().describe('True when this is one half of a transfer between accounts'),
+  transfer_id: z.string().optional().describe('ID of the matching transaction in the other account'),
+  transfer_account: z.string().optional().describe('Name of the other account in the transfer'),
+};
+
 const subtransactionsSchema = z
   .array(
     z.object({
@@ -297,6 +319,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
             category: z.string().optional(),
             notes: z.string().optional(),
             cleared: z.boolean().optional(),
+            ...transferFields,
             subtransactions: subtransactionsSchema,
           })
         ),
@@ -332,7 +355,9 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
       const categories = await client.getCategories();
 
       const payeeMap = new Map(payees.map((p) => [p.id, p.name]));
+      const payeesById = new Map(payees.map((p) => [p.id, p]));
       const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+      const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
 
       const formattedTransactions = transactions.map((t: any) => ({
         id: t.id,
@@ -342,6 +367,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
         category: t.category ? categoryMap.get(t.category) : undefined,
         notes: t.notes ?? undefined,
         cleared: t.cleared,
+        ...formatTransfer(t, payeesById, accountMap),
         subtransactions: formatSubtransactions(t, categoryMap),
       }));
 
@@ -383,6 +409,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
             payee: z.string().optional(),
             category: z.string().optional(),
             notes: z.string().optional(),
+            ...transferFields,
             subtransactions: subtransactionsSchema,
           })
         ),
@@ -397,6 +424,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
       const payeeMap = new Map(payees.map((p) => [p.id, p.name]));
       const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
       const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
+      const payeesById = new Map(payees.map((p) => [p.id, p]));
 
       const endDate = end_date || ActualBudgetClient.getToday();
       const startDate =
@@ -459,6 +487,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
         payee: t.payee ? payeeMap.get(t.payee) : undefined,
         category: t.category ? categoryMap.get(t.category) : undefined,
         notes: t.notes ?? undefined,
+        ...formatTransfer(t, payeesById, accountMap),
         subtransactions: formatSubtransactions(t, categoryMap),
       }));
 
@@ -807,7 +836,7 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
     {
       title: '取得支出摘要',
       description:
-        'Get a spending summary by category for a specific period. Great for understanding where money is going. Split transactions are attributed to their sub-categories.',
+        'Get a spending summary by category for a specific period. Great for understanding where money is going. Split transactions are attributed to their sub-categories. Transfers between on-budget accounts are excluded; transfers to off-budget accounts count as spending/income.',
       inputSchema: {
         start_date: z
           .string()
@@ -848,6 +877,8 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
       const accounts = await client.getAccounts();
       const categories = await client.getCategories();
       const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+      const payeesById = new Map((await client.getPayees()).map((p) => [p.id, p]));
+      const onBudgetIds = new Set(accounts.filter((a) => !a.offbudget).map((a) => a.id));
 
       // Collect all transactions
       const allTransactions: any[] = [];
@@ -868,6 +899,9 @@ export function registerTools(server: McpServer, client: ActualBudgetClient) {
       // Split parents carry no category: count their parts instead of the parent
       const entries: any[] = [];
       for (const t of allTransactions) {
+        // A transfer between two on-budget accounts is not spending or income
+        const counterpart = t.payee ? payeesById.get(t.payee)?.transfer_acct : undefined;
+        if (counterpart && onBudgetIds.has(counterpart)) continue;
         if (Array.isArray(t.subtransactions) && t.subtransactions.length > 0) {
           entries.push(...t.subtransactions);
         } else if (!t.is_parent) {
