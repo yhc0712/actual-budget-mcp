@@ -24,6 +24,7 @@ export interface Transaction {
   notes?: string;
   imported_id?: string;
   cleared?: boolean;
+  transfer_id?: string;
   subtransactions?: Transaction[];
 }
 

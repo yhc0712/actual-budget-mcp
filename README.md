@@ -8,7 +8,7 @@ Manage your budget through natural language conversations with Claude:
 
 - 📝 **Add Transactions** - "Add a transaction: $350 at Whole Foods for groceries"
 - 💰 **Check Balances** - "What's my checking account balance?"
-- 🔄 **Transfer Money** - "Transfer $500 from checking to savings"
+- 🔄 **Spot Transfers** - Transactions show `is_transfer`, `transfer_id` and the other account; spending summaries skip on-budget transfers
 - 📊 **Budget Tracking** - "How much have I spent on dining this month?"
 - 🔍 **Search Transactions** - "Show me all Costco purchases last month"
 - 📈 **Spending Analysis** - "Analyze my spending breakdown for this month"
@@ -20,7 +20,7 @@ Manage your budget through natural language conversations with Claude:
 |------|-------------|
 | `get_accounts` | Get all accounts with balances |
 | `get_account_balance` | Query specific account balance |
-| `add_transaction` | Add transaction (income/expense/transfer) |
+| `add_transaction` | Add transaction (income/expense; creating transfers is not supported yet) |
 | `import_transactions` | Batch import multiple transactions |
 | `get_transactions` | Query account transaction history (split transactions include `subtransactions`) |
 | `search_transactions` | Search transactions by payee, notes, or amount (split transactions include `subtransactions`) |
@@ -188,20 +188,6 @@ Claude: ✅ Transaction added:
 Would you like to specify a category?
 ```
 
-### Transferring Between Accounts
-
-```
-You: Transfer $500 from checking to savings
-
-Claude: ✅ Transfer created:
-- From: Checking
-- To: Savings
-- Amount: $500
-- Date: 2024-12-30
-
-The transfer has been recorded in both accounts.
-```
-
 ### Batch Importing Transactions
 
 ```
@@ -240,20 +226,9 @@ Claude: Here's your budget summary for 2024-12:
 
 ## New Features in v1.2.0
 
-### Transfer Transactions
+### Transfer Detection
 
-The `add_transaction` tool now supports the `transfer_to` parameter for creating transfers between accounts:
-
-```json
-{
-  "account": "Checking",
-  "amount": -100,
-  "transfer_to": "Savings",
-  "notes": "Monthly savings"
-}
-```
-
-This automatically creates matching transactions in both accounts using Actual Budget's transfer mechanism.
+`get_transactions` and `search_transactions` mark transfers with `is_transfer`, `transfer_id` (the matching transaction in the other account) and `transfer_account` (the other account's name). `get_spending_summary` excludes transfers between on-budget accounts; transfers to off-budget accounts still count as spending/income. Creating transfers is not supported yet.
 
 ### Batch Import Transactions
 
