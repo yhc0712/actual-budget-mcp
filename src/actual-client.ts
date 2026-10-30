@@ -232,7 +232,7 @@ class ActualBudgetClient {
     fields: Partial<Transaction>
   ): Promise<void> {
     await this.ensureInitialized();
-    await api.updateTransaction(id, fields);
+    await api.updateTransaction(id, fields as Parameters<typeof api.updateTransaction>[1]);
     await api.sync();
   }
 
